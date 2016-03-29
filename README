@@ -1,0 +1,67 @@
+What is it ?
+============
+
+This package contains a Python module that allows to connect to call
+procedures on remote servers using the Sun RPC protocol. It also
+contains a code generator, that allows to generate client stubs for an
+RPC protocol.
+
+Documentation
+=============
+
+M.I.A.: have a look at the example.sh script
+
+Dependencies
+============
+
+You need to install Ply, « Yet Another implementation
+of lex and yacc for Python », available from
+
+#example using virtualenv
+virtualenv /tmp/env
+. /tmp/env/bin/activate
+pip install ply
+
+Download
+========
+The current/latest development version is
+available from the GIT repository available at
+https://github.com/hawk78/pyrpcgen.git .
+
+Difference with rpcgen
+======================
+
+rpcgen automatically runs the C preprocessor (cc -E) before parsing
+the file, which allows to use #define, #include, #ifdef and other C
+preprocessor directives in XDR files.
+
+pyrpcgen doesn't run the C preprocessor, so you must do it manually if
+you want to use preprocessor directives.
+
+Authors
+=======
+
+This code has been primarly written by Fred Isaman
+<iisaman@citi.umich.edu>. The code generator is based on work done by
+Peter Astrand <peter@cendio.se> and has been extended by Thomas
+Petazzoni <thomas.petazzoni@enix.org> to generate client stubs.
+
+This version has been extended by Vincenzo Di Massa <hawk.it@tiscali.it>
+<vincenzo.dimassa@thalesgroup.com> in order to add more types to the ones 
+supported by rpcgen and support to both TCP a UDP sockets.
+
+License
+=======
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
