@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # rpcgen.py - A Python RPC protocol compiler
 #
 # Written by Fred Isaman <iisaman@citi.umich.edu>
@@ -224,6 +224,8 @@ import keyword
 import io
 import time
 import os
+
+import functools
 # Allow to be run stright from package
 if  __name__ == "__main__":
     if os.path.isfile(os.path.join(sys.path[0], 'lib', 'testmod.py')):
@@ -344,10 +346,7 @@ def p_constant(t):
     '''constant : CONST10
                 | CONST8
                 | CONST16'''
-    if len(t[1]) > 9:
-        t[0] = t[1] + 'L'
-    else:
-        t[0] = t[1]
+    t[0] = t[1]
 
 def p_value(t):
     '''value : constant
@@ -705,6 +704,7 @@ class Case_Spec(object):
     def __str__(self):
         return "cases %s: %s" % (self.cases, self.declarations)
 
+@functools.total_ordering
 class Info(object):
     def __init__(self):
         self.lineno = None
@@ -716,14 +716,13 @@ class Info(object):
     def __str__(self):
         return "%s %s at line %s" % (self.type, self.id, self.lineno)
 
-    def __cmp__(self, other):
+    def __lt__(self, other):
         """Sort based on sortno"""
-        if self.sortno < other.sortno:
-            return -1
-        elif self.sortno == other.sortno:
-            return 0
-        else:
-            return 1
+        return self.sortno < other.sortno
+    
+    def __eq__(self, other):
+        """Compare based on sortno"""
+        return self.sortno == other.sortno
 
     def const_output(self):
         return None
@@ -805,7 +804,7 @@ class Info(object):
                         (prefix, self.id)
                 if self.len is not None:
                     limit = "%sif len(data) > %s:\n" \
-                            "%s%sraise XDRError, 'array length too long'\n" %\
+                            "%s%sraise XDRError('array length too long')\n" %\
                             (prefix, self.fullname(self.len), prefix, varindent)
                     array = limit + array
         else:
@@ -832,7 +831,7 @@ class Info(object):
                          (prefix, newdata, self.id)
                 if self.len is not None:
                     limit = "%sif len(%s) > %s:\n" \
-                            "%s%sraise XDRError, 'array length too long'\n" %\
+                            "%s%sraise XDRError('array length too long')\n" %\
                             (prefix, newdata, self.fullname(self.len), prefix, indent)
                     array += limit
             newdata = 'data'
@@ -844,7 +843,7 @@ class Info(object):
         prefix, data, subheader, array = self._array_pack(prefix, data)
         varlist = ["const.%s" % l.id for l in self.body]
         check = "%sif %s not in [%s]:\n" \
-                "%s%sraise XDRError, 'value=%%s not in enum %s' %% %s\n" % \
+                "%s%sraise XDRError('value=%%s not in enum %s)' %% %s\n" % \
                 (prefix, data, ', '.join(varlist),
                  prefix, indent, self.id, data)
         pack = check + "%sself.pack_int(%s)\n" % (prefix, data)
@@ -854,7 +853,7 @@ class Info(object):
         prefix, data, subheader, array = self._array_unpack(prefix, data)
         varlist = ["const.%s" % l.id for l in self.body]
         check = "%sif %s not in [%s]:\n" \
-                "%s%sraise XDRError, 'value=%%s not in enum %s' %% %s\n" % \
+                "%s%sraise XDRError('value=%%s not in enum %s)' %% %s\n" % \
                 (prefix, data, ', '.join(varlist),
                  prefix, indent, self.id, data)
         unpack = "%s%s = self.unpack_int()\n" % (prefix, data)
@@ -894,7 +893,7 @@ class Info(object):
         if default != []:
             pack += default[0].packout(prefix + indent, data)
         else:
-            pack += "%s%sraise XDRError, 'bad switch=%%s' %% %s.%s\n" % \
+            pack += "%s%sraise XDRError('bad switch=%%s)' %% %s.%s\n" % \
                     (prefix, indent, data, switch.id)
         return subheader + pack + array
 
@@ -936,7 +935,7 @@ class Info(object):
                       (prefix, indent, data, data, default[0].id)
             unpack += arm
         else:
-            unpack += "%s%sraise XDRError, 'bad switch=%%s' %% %s.%s\n" % \
+            unpack += "%s%sraise XDRError('bad switch=%%s)' %% %s.%s\n" % \
                       (prefix, indent, data, switch.id)
 
         return subheader + unpack + array
@@ -1185,7 +1184,7 @@ class procedure_info(Info):
                 str += "%spacker.pack_%s(p%i)\n" % (prefix, arg.type, i)
             buf = "packer.get_buffer()"
         else:
-            buf = "''"
+            buf = "b''"
         if self.retval.type != 'void':
             str += "%sres = self.call(procedure_id, %s)\n" % (prefix, buf)
             str += "%sunpacker = pack.%sUnpacker(res)\n" % (prefix, name_base)
@@ -1209,7 +1208,7 @@ class procedure_info(Info):
             _str += "%sunpacker.done()\n" % prefix
             params =  "p" + ", p".join(map(str,list(range(len(self.params)))))
         else:
-            buf = "''"
+            buf = "b''"
             params = ""
 
         _str += "%sres = self.%s(%s)\n" % (prefix, self.id, params)
@@ -1219,7 +1218,7 @@ class procedure_info(Info):
             _str += "%sres = packer.get_buffer()\n" % prefix
             _str += "%sreturn (MSG_ACCEPTED, res)\n" % prefix
         else:
-            _str += "%sreturn (MSG_ACCEPTED, '')\n" % prefix
+            _str += "%sreturn (MSG_ACCEPTED, b'')\n" % prefix
         return (comment + _str)
 
 class type_info(Info):
@@ -1280,7 +1279,7 @@ class type_info(Info):
 
     def packout(self, prefix='', data='data'):
         check = "%sif %s.%s is None:\n" \
-                "%s%sraise TypeError, '%s.%s == None'\n" % \
+                "%s%sraise TypeError('%s.%s == None')\n" % \
                 (prefix, data, self.id, prefix, indent, data, self.id)
         if self.type == 'void':
             return prefix + 'pass\n'
@@ -1326,8 +1325,8 @@ class type_info(Info):
         if self.fixed or self.len is None:
             limit = ''
         else:
-            limit = "%sif len(%s) > %s:\n%s%sraise XDRError, " \
-                    "'array length too long for %s'\n" % \
+            limit = "%sif len(%s) > %s:\n%s%sraise XDRError( " \
+                    "'array length too long for %s')\n" % \
                     (prefix, data, self.fullname(self.len), prefix, indent, data)
         if self.fixed:
             fixchar = 'f'
@@ -1349,8 +1348,8 @@ class type_info(Info):
         if self.fixed or self.len is None:
             limit = ''
         else:
-            limit = "%sif len(%s) > %s:\n%s%sraise XDRError, " \
-                    "'array length too long for %s'\n" % \
+            limit = "%sif len(%s) > %s:\n%s%sraise XDRError( " \
+                    "'array length too long for %s')\n" % \
                     (prefix, data, self.fullname(self.len), prefix, indent, data)
         if self.fixed:
             fixchar = 'f'
@@ -1436,14 +1435,6 @@ def run(infile, outdir, debug=False):
         print("Error occurred, did not write output files")
         return 1
 
-    init_py_fd = file (outdir + "/__init__.py", "w")
-    init_py_fd.write ("import const\n")
-    init_py_fd.write ("import types\n")
-    init_py_fd.write ("import pack\n")
-    init_py_fd.write ("import client\n")
-    init_py_fd.write ("import server\n")
-    init_py_fd.close()
-
     # Create output file names (without .py)
     global constants_file, types_file, packer_file, client_file
     constants_file = outdir + "/const"
@@ -1456,29 +1447,29 @@ def run(infile, outdir, debug=False):
 
     comment_string = "# Generated by rpcgen.py from %s on %s\n" % \
                      (infile, time.asctime())
-    const_fd = file(constants_file + ".py", "w")
+    const_fd = open(constants_file + ".py", "w")
     const_fd.write(comment_string)
-    type_fd = file(types_file + ".py", "w")
+    type_fd = open(types_file + ".py", "w")
     type_fd.write(comment_string)
-    type_fd.write("import const\n")
-    pack_fd = file(packer_file + ".py", "w")
+    type_fd.write("from . import const\n")
+    pack_fd = open(packer_file + ".py", "w")
     pack_fd.write(comment_string)
-    pack_fd.write("import const\n")
-    pack_fd.write("import types\n")
+    pack_fd.write("from . import const\n")
+    pack_fd.write("from . import types\n")
     pack_fd.write(pack_header)
     pack_fd.write("class %sPacker(xdrlib.Packer):\n" % name_base)
     pack_fd.write(packer_start)
-    client_fd = file(client_file + ".py", "w")
+    client_fd = open(client_file + ".py", "w")
     client_fd.write(comment_string)
-    client_fd.write("import rpc\n")
-    client_fd.write("import const\n")
-    client_fd.write("import pack\n\n")
+    client_fd.write("from rpc import rpc\n")
+    client_fd.write("from . import const\n")
+    client_fd.write("from . import pack\n\n")
 
-    server_fd = file(server_file + ".py", "w")
+    server_fd = open(server_file + ".py", "w")
     server_fd.write(comment_string)
-    server_fd.write("import rpc\n")
-    server_fd.write("import const\n")
-    server_fd.write("import pack\n")
+    server_fd.write("from rpc import rpc\n")
+    server_fd.write("from . import const\n")
+    server_fd.write("from . import pack\n")
     server_fd.write("from rpc.rpc_const import *\n\n")
 
     type_list = list(name_dict.values())

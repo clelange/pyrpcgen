@@ -32,7 +32,7 @@ class RPCPacker(xdrlib.Packer):
             raise TypeError('data.body == None')
         if len(data.body) > 400:
             raise XDRError('array length too long for data.body')
-        self.pack_opaque(data.body)
+        self.pack_opaque(data.body.encode('latin1'))
 
     def pack_msg_type(self, data):
         if data not in [const.CALL, const.REPLY]:

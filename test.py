@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-from server import exampleProgram as Server
-from client import exampleProgram as Client
+from out.server import exampleProgram as Server
+from out.client import exampleProgram as Client
 
 import sys
 
@@ -109,10 +109,10 @@ def testclt2(port):
 
     c.debug = debug
     print('making call...')
-    reply = c.hello("Ciao mondo!")
+    reply = c.hello(b"Ciao mondo!")
     print('call returned', repr(reply))
 
-import rpc
+from rpc import rpc
 
 def testPortMapper():
     pmap = rpc.UDPPortMapperClient('')

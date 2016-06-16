@@ -1,7 +1,7 @@
 What is it ?
 ============
 
-This package contains a Python module that allows to connect to call
+This package contains a Python3 module that allows to connect to call
 procedures on remote servers using the Sun RPC protocol. It also
 contains a code generator, that allows to generate client stubs for an
 RPC protocol.
@@ -15,7 +15,7 @@ Dependencies
 ============
 
 You need to install Ply, « Yet Another implementation
-of lex and yacc for Python », available from
+of lex and yacc for Python », available from pypi
 
 #example using virtualenv
 virtualenv /tmp/env
@@ -47,8 +47,10 @@ Peter Astrand <peter@cendio.se> and has been extended by Thomas
 Petazzoni <thomas.petazzoni@enix.org> to generate client stubs.
 
 This version has been extended by Vincenzo Di Massa <hawk.it@tiscali.it>
-<vincenzo.dimassa@thalesgroup.com> in order to add more types to the ones 
-supported by rpcgen and support to both TCP a UDP sockets.
+<vincenzo.dimassa@thalesgroup.com> in order to:
+- add more types to the ones supported by the original rpcgen 
+- add support to both TCP a UDP sockets
+- port it to python3
 
 License
 =======

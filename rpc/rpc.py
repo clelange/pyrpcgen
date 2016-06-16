@@ -17,9 +17,9 @@ import socket
 import select
 import threading
 
-from   .rpc_const import *
-from   .rpc_type import *
-from . import rpc_pack as rpc_pack
+from . rpc_const import *
+from . rpc_type import *
+from . import rpc_pack
 
 # Import security flavors and store valid ones
 from .rpcsec.sec_auth_none import SecAuthNone
@@ -205,7 +205,7 @@ class PortMapperClientMixin:
 
     def addpackers(self):
         self.packer = PortMapperPacker()
-        self.unpacker = PortMapperUnpacker('')
+        self.unpacker = PortMapperUnpacker(b'')
 
     def make_call(self, proc, args, pack_func, unpack_func):
         # Don't normally override this (but see Broadcast)
@@ -213,7 +213,8 @@ class PortMapperClientMixin:
             raise TypeError('non-null args with null pack_func')
         if pack_func:
             pack_func(args)
-        res = self.call(proc, self.packer.get_buf())
+        p = self.packer.get_buf()
+        res = self.call(proc, p)
         if unpack_func:
             self.unpacker.reset(res)
             result = unpack_func()
@@ -248,10 +249,10 @@ class PortMapperClientMixin:
                 self.unpacker.unpack_call_result)
 ###################################################
 
-class RPCSocketTCP(socket.SocketType):
+class RPCSocketTCP(socket.socket):
     def recv_all(self, n):
         """Receive n bytes, or raise an error"""
-        data = ""
+        data = b''
         while n > 0:
             newdata = self.recv(n)
             count = len(newdata)
@@ -264,7 +265,7 @@ class RPCSocketTCP(socket.SocketType):
     def recv_record(self):
         """Receive data sent using record marking standard"""
         last = False
-        data = ""
+        data = b''
         while not last:
             rec_mark = self.recv_all(4)
             count = struct.unpack('>L', rec_mark)[0]
@@ -288,17 +289,17 @@ class RPCSocketTCP(socket.SocketType):
             self.sendall(mark + chunk)
         #print "send_record sent %s" % repr(data)
 
-class RPCSocketUDP(socket.SocketType):
+class RPCSocketUDP(socket.socket):
     def recv_record(self):
         """Receive data sent using record marking standard"""
         BUFSIZE = 8192 # Max UDP buffer size
         r, w, x = [self], [], []
         timeout = 1
 
-        reply = ""
+        reply = b''
         r, w, x = select.select([self], [], [], timeout)
         if self not in r:
-            return ""
+            return b''
         reply = self.recv(BUFSIZE)
         return reply
 
@@ -427,7 +428,7 @@ class Client(object):
         self.connsocket()
         return self.getsocket()
 
-    def send(self, procedure, data='', program=None, version=None):
+    def send(self, procedure, data=b'', program=None, version=None):
         """Send an RPC call to the server
 
         Takes as input packed arguments
@@ -513,7 +514,7 @@ class Client(object):
         self.check_reply(rhead)
         return rdata
 
-    def call(self, procedure, data='', program=None, version=None):
+    def call(self, procedure, data=b'', program=None, version=None):
         """Make an RPC call to the server
 
         Takes as input packed arguments
@@ -696,7 +697,7 @@ class RPCServer(Server):
     def __init__(self, prog=10, vers=4, host='', port=51423):
         Server.__init__(self, host, port)
         self.rpcpacker =  rpc_pack.RPCPacker()
-        self.rpcunpacker = rpc_pack.RPCUnpacker('')
+        self.rpcunpacker = rpc_pack.RPCUnpacker(b'')
         self.prog = prog
         self.vers = vers # FRED - this could be more general
         self.security = SecAuthNone()
@@ -707,10 +708,10 @@ class RPCServer(Server):
         self.sockets = {}
 
     def handle_0(self, data):
-        if data != '':
-            return GARBAGE_ARGS, ''
+        if data != b'':
+            return GARBAGE_ARGS, b''
         else:
-            return SUCCESS, ''
+            return SUCCESS, b''
 
     def event_read(self, fd, recv_data, debug=0):
         """Reads incoming record marked packets
@@ -786,8 +787,8 @@ class RPCServer(Server):
                   (csock.getpeername(), csock.fileno()))
         self.p.register(csock, _readmask)
         cfd = csock.fileno()
-        self.readbufs[cfd] = ''
-        self.writebufs[cfd] = ''
+        self.readbufs[cfd] = b''
+        self.writebufs[cfd] = b''
         self.packetbufs[cfd] = []
         self.recordbufs[cfd] = []
         self.sockets[cfd] = csock
@@ -810,7 +811,7 @@ class RPCServer(Server):
         #print call
         reply_stat = MSG_ACCEPTED
         areply = rreply = None
-        proc_response = ''
+        proc_response = b''
         class C(object):
             pass
         data = C()
@@ -825,28 +826,28 @@ class RPCServer(Server):
         # At this point recv_msg has been accepted
         # Check for reasons to fail before calling handle_*
         elif self.prog != call.prog:
-            verf = self.security.make_reply_verf('')
+            verf = self.security.make_reply_verf(b'')
             data.stat = PROG_UNAVAIL
             areply = accepted_reply(verf, data)
         elif self.vers != call.vers:
-            verf = self.security.make_reply_verf('')
+            verf = self.security.make_reply_verf(b'')
             data.stat = PROG_MISMATCH
             data.mismatch_info = C()
             data.mismatch_info.low = data.mismatch_info.high = self.vers
             areply = accepted_reply(verf, data)
         elif not hasattr(self, "handle_%i" % call.proc):
             print("The server does not implement handle_%i" % call.proc)
-            verf = self.security.make_reply_verf('')
+            verf = self.security.make_reply_verf(b'')
             data.stat = PROC_UNAVAIL
             areply = accepted_reply(verf, data)
         # Call appropriate handle_*
         else:
-            verf = self.security.make_reply_verf('')
+            verf = self.security.make_reply_verf(b'')
             meth_data = recv_data[self.rpcunpacker.get_position():]
             method = getattr(self, "handle_%i" % call.proc)
             a_stat, proc_response = method(meth_data)
             data.stat = a_stat
-            data.results = ''
+            data.results = b''
             areply = accepted_reply(verf, data)
         # Build reply
         body = reply_body(reply_stat, areply, rreply)
@@ -893,10 +894,10 @@ class TCPServer(RPCServer):
     def read_data(self, fd, debug):
         recv_data = self.sockets[fd].recv(4096)
         if not recv_data:
-            return ("", True)
+            return (b'', True)
         self.readbufs[fd] += recv_data
         data = self.readbufs[fd]
-        res = ""
+        res = b''
         last = False
         if len(data) >= 4:
             packetlen = struct.unpack('>L', data[0:4])[0]
@@ -907,10 +908,10 @@ class TCPServer(RPCServer):
                 self.readbufs[fd] = data[4 + packetlen:]
                 if last:
                     if debug: print("SERVER: Received record from %i" % fd)
-                    res = (''.join(self.packetbufs[fd]), last)
+                    res = (b''.join(self.packetbufs[fd]), last)
                     self.packetbufs[fd] = []
                     return res
-        return ("", False)
+        return (b'', False)
 
 
 class UDPServer(RPCServer):
