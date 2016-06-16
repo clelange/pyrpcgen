@@ -17,17 +17,17 @@ import socket
 import select
 import threading
 
-from   rpc_const import *
-from   rpc_type import *
-import rpc_pack as rpc_pack
+from   .rpc_const import *
+from   .rpc_type import *
+from . import rpc_pack as rpc_pack
 
 # Import security flavors and store valid ones
-from rpcsec.sec_auth_none import SecAuthNone
-from rpcsec.sec_auth_sys import SecAuthSys
+from .rpcsec.sec_auth_none import SecAuthNone
+from .rpcsec.sec_auth_sys import SecAuthSys
 supported = {'none' : SecAuthNone,
              'sys'  : SecAuthSys }
 try:
-    from rpcsec.sec_auth_gss import SecAuthGss
+    from .rpcsec.sec_auth_gss import SecAuthGss
     supported['gss'] = SecAuthGss
 except ImportError:
     pass
@@ -210,7 +210,7 @@ class PortMapperClientMixin:
     def make_call(self, proc, args, pack_func, unpack_func):
         # Don't normally override this (but see Broadcast)
         if pack_func is None and args is not None:
-            raise TypeError, 'non-null args with null pack_func'
+            raise TypeError('non-null args with null pack_func')
         if pack_func:
             pack_func(args)
         res = self.call(proc, self.packer.get_buf())
@@ -268,9 +268,9 @@ class RPCSocketTCP(socket.SocketType):
         while not last:
             rec_mark = self.recv_all(4)
             count = struct.unpack('>L', rec_mark)[0]
-            last = count & 0x80000000L
+            last = count & 0x80000000
             if last:
-                count &= 0x7fffffffL
+                count &= 0x7fffffff
             data += self.recv_all(count)
         #print "recv_record got %s" % repr(data)
         return data
@@ -283,7 +283,7 @@ class RPCSocketTCP(socket.SocketType):
             chunk = data[i:i+chunksize]
             i += chunksize
             if i >= dlen:
-                last = 0x80000000L
+                last = 0x80000000
             mark = struct.pack('>L', last | len(chunk))
             self.sendall(mark + chunk)
         #print "send_record sent %s" % repr(data)
@@ -322,7 +322,7 @@ class Client(object):
         self._rpcunpacker = {t : rpc_pack.RPCUnpacker('')}
         self.default_prog = program
         self.default_vers = version
-        self.xid = 0L
+        self.xid = 0
         self._xidlist = {}
         if sec_list is None:
             sec_list = [SecAuthNone()]
@@ -335,11 +335,11 @@ class Client(object):
 
     def makesocket(self):
         # This MUST be overridden
-        raise RuntimeError, 'makesocket not defined'
+        raise RuntimeError('makesocket not defined')
 
     def connsocket(self):
         # Override this if you don't want/need a connection
-        if self.debug: print "Connecting to: host:'%s' port:'%s'" % (self.host, self.port)
+        if self.debug: print("Connecting to: host:'%s' port:'%s'" % (self.host, self.port))
         self.getsocket().connect((self.host, self.port))
 
     def bindsocket(self):
@@ -446,13 +446,13 @@ class Client(object):
 
     def send_impl(self, header, xid, data):
         try:
-            if self.debug: print "send %i" % xid
+            if self.debug: print("send %i" % xid)
             self.socket.send_record(header + data, )
         except socket.timeout:
             raise
-        except socket.error, e:
-            print "Got error:", e
-            if self.debug: print "resend", xid
+        except socket.error as e:
+            print("Got error:", e)
+            if self.debug: print("resend", xid)
             try:
                 self.reconnect().send_record(header + data)
             except socket.error:
@@ -464,7 +464,7 @@ class Client(object):
         # If xid not on list, return error.
         # Listen unitl get reply with given xid.  Cache others received
         # on list.  Return error if get one not on list.
-        if self.debug: print "listen", xid
+        if self.debug: print("listen", xid)
         list = self.get_outstanding_xids()
         if xid not in list:
             raise
@@ -478,9 +478,9 @@ class Client(object):
                 reply = self.socket.recv_record()
             except socket.timeout:
                 raise
-            except socket.error, e:
-                print "Got error:", e
-                if self.debug: print "relisten", xid
+            except socket.error as e:
+                print("Got error:", e)
+                if self.debug: print("relisten", xid)
                 try:
                     s = self.reconnect()
                     s.send_record(list[xid].header + list[xid].data)
@@ -493,7 +493,7 @@ class Client(object):
             rhead = p.unpack_rpc_msg()
             rxid = rhead.xid
             if rxid not in list:
-                print list, rxid, repr(reply)
+                print(list, rxid, repr(reply))
                 raise RPCError("Got reply xid %i, expected %i" % \
                                (rxid, xid))
             rdata = reply[p.get_position():]
@@ -592,7 +592,7 @@ class TCPClient(RawTCPClient):
         port = pmap.Getport((program, version, IPPROTO_TCP, 0))
         pmap.close()
         if port == 0:
-            raise RuntimeError, 'program not registered'
+            raise RuntimeError('program not registered')
         RawTCPClient.__init__(self, host, port, program, version, sec_list, timeout)
         
 class UDPClient(RawUDPClient):
@@ -601,7 +601,7 @@ class UDPClient(RawUDPClient):
         port = pmap.Getport((program, version, IPPROTO_UDP, 0))
         pmap.close()
         if port == 0:
-            raise RuntimeError, 'program not registered'
+            raise RuntimeError('program not registered')
         RawUDPClient.__init__(self, host, port, program, version, sec_list, timeout)
 
 
@@ -621,75 +621,75 @@ class Server(object):
 
     def makesocket(self):
         # This MUST be overridden
-        raise RuntimeError, 'makesocket not defined'
+        raise RuntimeError('makesocket not defined')
 
     def run(self, debug=0):
         while 1:
-            if debug: print "%s: Calling poll" % self.name
+            if debug: print("%s: Calling poll" % self.name)
             res = self.p.poll()
-            if debug: print "%s: %s" % (self.name, res)
+            if debug: print("%s: %s" % (self.name, res))
             for fd, event in res:
                 if debug:
-                    print "%s: Handling fd=%i, event=%x" % \
-                          (self.name, fd, event)
+                    print("%s: Handling fd=%i, event=%x" % \
+                          (self.name, fd, event))
                 if event & select.POLLHUP:
-                    print "%s: Handling POLLHUP" % self.name
+                    print("%s: Handling POLLHUP" % self.name)
                     self.event_hup(fd)
                 elif event & select.POLLNVAL:
-                    if debug: print "%s: POLLNVAL for fd=%i" % (self.name, fd)
+                    if debug: print("%s: POLLNVAL for fd=%i" % (self.name, fd))
                     self.p.unregister(fd)
                 elif event & ~(select.POLLIN | select.POLLOUT):
                     if debug:
-                        print "%s: ERROR: event %i for fd %i" % \
-                              (self.name, event, fd)
+                        print("%s: ERROR: event %i for fd %i" % \
+                              (self.name, event, fd))
                     self.event_error(fd)
                 else:
                     if event & select.POLLIN:
                         if debug:
-                            print "%s: Handling POLLIN" % self.name
+                            print("%s: Handling POLLIN" % self.name)
                         if fd == self.s.fileno():
                             if debug:
-                                print "%s Connection incoming" % self.name
+                                print("%s Connection incoming" % self.name)
                             self.event_new_client(fd, debug)
                         else:
                             self.serve_client_on_fd(fd, debug)
 
                     if event & select.POLLOUT:
                         if debug:
-                            print "%s: Handling POLLOUT" % self.name
+                            print("%s: Handling POLLOUT" % self.name)
                         self.event_write(fd)
 
     def serve_client_on_fd(self, fd, debug):
         if debug:
-            print "%s Data incoming" % self.name
+            print("%s Data incoming" % self.name)
         (data, done) = self.read_data(fd, debug)
         if done:
             if data:
                 if debug:
-                    print "%s Data incoming -> ev read %s" % (self.name, (data, done))
+                    print("%s Data incoming -> ev read %s" % (self.name, (data, done)))
                 self.event_read(fd, data)
             else:
                 if debug:
-                    print "%s Data incoming -> ev hup %s" % (self.name, (data, done))
+                    print("%s Data incoming -> ev hup %s" % (self.name, (data, done)))
                 self.event_close(fd)
         else:
             if debug:
-                print "%s Waiting for more data %s" % (self.name, (data, done))
+                print("%s Waiting for more data %s" % (self.name, (data, done)))
 
     def read_data(self, fd, debug=0):
-        raise RuntimeError, 'read_data not defined'
+        raise RuntimeError('read_data not defined')
     def event_error(self, fd, debug=0):
-        raise RuntimeError, 'event_error not defined'
+        raise RuntimeError('event_error not defined')
     def event_hup(self, fd, debug=0):
-        raise RuntimeError, 'event_hup not defined'
+        raise RuntimeError('event_hup not defined')
     def event_new_client(self, fd, debug=0):
-        raise RuntimeError, 'event_connect not defined'
+        raise RuntimeError('event_connect not defined')
     def event_write(self, fd, debug=0):
-        raise RuntimeError, 'event_write not defined'
+        raise RuntimeError('event_write not defined')
     def event_close(self, fd, debug=0):
-        raise RuntimeError, 'event_close not defined'
+        raise RuntimeError('event_close not defined')
     def event_read(self, fd, debug=0):
-        raise RuntimeError, 'event_read not defined'
+        raise RuntimeError('event_read not defined')
 
 
 class RPCServer(Server):
@@ -717,7 +717,7 @@ class RPCServer(Server):
 
         Also responds to command codes sent as encoded integers
         """
-        if debug: print "SERVER: In read event for %i" % fd
+        if debug: print("SERVER: In read event for %i" % fd)
 
         if len(recv_data) == 4:
             reply = self.event_command(fd, struct.unpack('>L', recv_data)[0])
@@ -729,21 +729,21 @@ class RPCServer(Server):
             self.p.register(fd, _bothmask)
 
     def event_write(self, fd, chunksize=2048, debug=0):
-        if debug: print "SERVER: In write event for %i" % fd
+        if debug: print("SERVER: In write event for %i" % fd)
         if self.writebufs[fd]:
-            if debug: print "  writing from writebuf"
+            if debug: print("  writing from writebuf")
             count = self.sockets[fd].send(self.writebufs[fd])
             self.writebufs[fd] = self.writebufs[fd][count:]
             # check if done?
         elif self.recordbufs[fd]:
-            if debug: print "  writing from recordbuf"
+            if debug: print("  writing from recordbuf")
             data = self.recordbufs[fd][0]
             chunk = data[:chunksize]
             if len(data) > chunksize:
                 last = 0
                 self.recordbufs[fd][0] = data[chunksize:]
             else:
-                last = 0x80000000L
+                last = 0x80000000
                 del self.recordbufs[fd][0]
             mark = struct.pack('>L', last | len(chunk))
             self.writebufs[fd] = (mark + chunk)
@@ -751,13 +751,13 @@ class RPCServer(Server):
             count = self.sockets[fd].send(self.writebufs[fd])
             self.writebufs[fd] = self.writebufs[fd][count:]
         else:
-            if debug: print "  done writing"
+            if debug: print("  done writing")
             self.p.register(fd, _readmask)
 
 
     def event_command(self, cfd, comm, debug=0):
         if debug:
-            print "SERVER: command = %i, cfd = %i" % (comm, cfd)
+            print("SERVER: command = %i, cfd = %i" % (comm, cfd))
         if comm == 0: # Turn off server
             self.compute_reply = lambda x: None
             return '\0'*4
@@ -767,7 +767,7 @@ class RPCServer(Server):
 
     def event_close(self, fd, debug=0):
         if debug:
-            print "SERVER: closing %i" % fd
+            print("SERVER: closing %i" % fd)
         self.event_error(fd)
 
     def event_error(self, fd):
@@ -781,9 +781,9 @@ class RPCServer(Server):
 
     def register_socket(self, csock, debug=0):
         if debug:
-            print "SERVER: got connection from %s, " \
+            print("SERVER: got connection from %s, " \
                   "assigned to fd=%i" % \
-                  (csock.getpeername(), csock.fileno())
+                  (csock.getpeername(), csock.fileno()))
         self.p.register(csock, _readmask)
         cfd = csock.fileno()
         self.readbufs[cfd] = ''
@@ -799,11 +799,11 @@ class RPCServer(Server):
         self.rpcunpacker.reset(recv_data)
         try:
             recv_msg = self.rpcunpacker.unpack_rpc_msg()
-        except xdrlib.Error, e:
-            print "XDRError", e
+        except xdrlib.Error as e:
+            print("XDRError", e)
             return
         if recv_msg.body.mtype != CALL:
-            print "Received a REPLY, expected a CALL"
+            print("Received a REPLY, expected a CALL")
             return
         # Check for reasons to deny the call
         call = recv_msg.body.cbody
@@ -835,7 +835,7 @@ class RPCServer(Server):
             data.mismatch_info.low = data.mismatch_info.high = self.vers
             areply = accepted_reply(verf, data)
         elif not hasattr(self, "handle_%i" % call.proc):
-            print "The server does not implement handle_%i" % call.proc
+            print("The server does not implement handle_%i" % call.proc)
             verf = self.security.make_reply_verf('')
             data.stat = PROC_UNAVAIL
             areply = accepted_reply(verf, data)
@@ -864,22 +864,22 @@ class RPCServer(Server):
         mapping = self.prog, self.vers, self.prot, self.port
         p = TCPPortMapperClient(self.host)
         if not p.Set(mapping):
-            raise RuntimeError, 'register failed'
+            raise RuntimeError('register failed')
 
     def unregister(self):
         mapping = self.prog, self.vers, self.prot, self.port
         p = TCPPortMapperClient(self.host)
         if not p.Unset(mapping):
-            raise RuntimeError, 'unregister failed'
+            raise RuntimeError('unregister failed')
 
 class TCPServer(RPCServer):
     prot = IPPROTO_TCP
     def makesocket(self):
         sock = RPCSocketTCP(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        if self.debug: print "binding host:%s port:%s" % (self.host, self.port)
+        if self.debug: print("binding host:%s port:%s" % (self.host, self.port))
         sock.bind((self.host, self.port))
-        if self.debug: print "connected: %s" % str(sock.getsockname())
+        if self.debug: print("connected: %s" % str(sock.getsockname()))
         sock.setblocking(0)
         sock.listen(5)
         return sock
@@ -900,13 +900,13 @@ class TCPServer(RPCServer):
         last = False
         if len(data) >= 4:
             packetlen = struct.unpack('>L', data[0:4])[0]
-            last = bool(0x80000000L & packetlen)
-            packetlen &= 0x7fffffffL
+            last = bool(0x80000000 & packetlen)
+            packetlen &= 0x7fffffff
             if len(data) >= 4 + packetlen:
                 self.packetbufs[fd].append(data[4:4 + packetlen])
                 self.readbufs[fd] = data[4 + packetlen:]
                 if last:
-                    if debug: print "SERVER: Received record from %i" % fd
+                    if debug: print("SERVER: Received record from %i" % fd)
                     res = (''.join(self.packetbufs[fd]), last)
                     self.packetbufs[fd] = []
                     return res
@@ -918,9 +918,9 @@ class UDPServer(RPCServer):
     def makesocket(self):
         sock = RPCSocketUDP(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        if self.debug: print "binding host:%s port:%s" % (self.host, self.port)
+        if self.debug: print("binding host:%s port:%s" % (self.host, self.port))
         sock.bind((self.host, self.port))
-        if self.debug: print "connected: %s" % str(sock.getsockname())
+        if self.debug: print("connected: %s" % str(sock.getsockname()))
         sock.setblocking(0)
         self.client = None
         return sock
@@ -934,7 +934,7 @@ class UDPServer(RPCServer):
             del self.recordbufs[fd][0]
             self.sockets[fd].sendto(data, self.client)
         else:
-            if debug: print "  done writing"
+            if debug: print("  done writing")
             self.p.register(fd, _readmask)
         
     def read_data(self, fd, debug):

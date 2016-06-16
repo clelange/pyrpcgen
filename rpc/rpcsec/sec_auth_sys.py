@@ -1,4 +1,4 @@
-from base import SecFlavor, SecError
+from .base import SecFlavor, SecError
 from rpc.rpc_const import AUTH_SYS
 from rpc.rpc_type import opaque_auth
 from xdrlib import Packer, Error
@@ -17,7 +17,7 @@ class SecAuthSys(SecFlavor):
             p.pack_uint(gid)
             p.pack_array(gids, p.pack_uint)
             self.cred = p.get_buffer()
-        except Error, e:
+        except Error as e:
             raise SecError("Packing error: %s", str(e))
         self.uid = uid
         self.gid = gid

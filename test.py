@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from server import exampleProgram as Server
 from client import exampleProgram as Client
 
@@ -41,10 +41,10 @@ def runServer(s):
     signal.signal(signal.SIGUSR1, signal_handler)
     try:
         s.unregister()
-    except RuntimeError, msg:
-        print 'RuntimeError:', msg, '(ignored)'
+    except RuntimeError as msg:
+        print('RuntimeError:', msg, '(ignored)')
     s.register()
-    print 'Service started...'
+    print('Service started...')
     try:
         s.run(debug)
     except KeyboardInterrupt:
@@ -53,7 +53,7 @@ def runServer(s):
         sys.exit(0)
     finally:
         s.unregister()
-        print 'Service interrupted.'
+        print('Service interrupted.')
 
 def testsrv(port):
     if port=="mapper":
@@ -63,7 +63,7 @@ def testsrv(port):
             ServerV1.__init__(self, *args, **kwargs)
 
         def hello(self):
-            print "No message, but life is great!"
+            print("No message, but life is great!")
             return None
     s = S('localhost', 44444)
     runServer(s)
@@ -76,7 +76,7 @@ def testsrv2(port):
             ServerV2.__init__(self, *args, **kwargs)
 
         def hello(self, message):
-            print "Yay! Got a message '%s'" % message
+            print("Yay! Got a message '%s'" % message)
             return 42
 
     s = S('localhost', port)
@@ -93,9 +93,9 @@ def testclt(port):
         c = ClientV1(host)
 
     c.debug = debug
-    print 'making call...'
+    print('making call...')
     reply = c.hello()
-    print 'call returned', repr(reply)
+    print('call returned', repr(reply))
 
 def testclt2(port):
     import sys
@@ -108,9 +108,9 @@ def testclt2(port):
         c = ClientV2(host)
 
     c.debug = debug
-    print 'making call...'
+    print('making call...')
     reply = c.hello("Ciao mondo!")
-    print 'call returned', repr(reply)
+    print('call returned', repr(reply))
 
 import rpc
 
@@ -119,18 +119,18 @@ def testPortMapper():
     list = pmap.Dump()
     list.sort()
     for prog, vers, prot, port in list:
-        print prog, vers,
-        if prot == rpc.IPPROTO_TCP: print 'tcp',
-        elif prot == rpc.IPPROTO_UDP: print 'udp',
-        else: print prot,
-        print port
+        print(prog, vers, end=' ')
+        if prot == rpc.IPPROTO_TCP: print('tcp', end=' ')
+        elif prot == rpc.IPPROTO_UDP: print('udp', end=' ')
+        else: print(prot, end=' ')
+        print(port)
 
 if __name__ == "__main__":
 
     def testFunc(x):
-        print """
+        print("""
 USAGE: %s [testsrv|testsrv2|testclt|testclt2|testPortMapper] [debug] [tcp|udp] [<port>]
-"""
+""")
 
     try:
         if sys.argv[1] == "testsrv":
@@ -162,7 +162,7 @@ USAGE: %s [testsrv|testsrv2|testclt|testclt2|testPortMapper] [debug] [tcp|udp] [
         try:
             port = int(sys.argv[1])
             del sys.argv[1]
-        except ValueError, IndexError:
+        except ValueError as IndexError:
             port = "mapper"
 
     except IndexError:
@@ -170,7 +170,7 @@ USAGE: %s [testsrv|testsrv2|testclt|testclt2|testPortMapper] [debug] [tcp|udp] [
         pass
     
     fixDefs()
-    print "prot='%s', port='%s'" % (protocol, port)
+    print("prot='%s', port='%s'" % (protocol, port))
 
     testFunc(port)
 
