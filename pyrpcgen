@@ -398,6 +398,7 @@ def p_type_def_1(t):
         elif d.type == 'union':
             info = d.create_union(lineno, sortno)
         else:
+            print("*****", d)
             info = d
         name_dict[d.id] = info
 
@@ -1414,7 +1415,7 @@ unpacker_start = ''.join(["%sunpack_%s = xdrlib.Unpacker.un%s\n" % (indent, k, v
 
 name_base = ''
 
-def run(infile, outdir, debug=False):
+def run(infile, outdir, overriddenName=None, debug=False):
     print("Input file is %s and out directory is %s" % (infile, outdir))
 
     # Parse the input data with yacc
@@ -1422,7 +1423,11 @@ def run(infile, outdir, debug=False):
     name_dict = {'FALSE' : const_info('FALSE', '0', -2),
                  'TRUE' : const_info('TRUE', '1', -1),
                  }
-    name_base = os.path.basename(infile[:infile.rfind(".")])
+    if overriddenName is None:
+        name_base = os.path.basename(infile[:infile.rfind(".")])
+    else:
+        name_base = overriddenName 
+    print("NAME=", name_base)
     f = open(infile)
     data = f.read()
     f.close()
@@ -1514,11 +1519,10 @@ def run(infile, outdir, debug=False):
 # Section: main
 #
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Usage: %s <filename> <out-directory>" % sys.argv[0])
+    if len(sys.argv) < 3 or len(sys.argv) > 4:
+        print("Usage: %s <filename> <out-directory> [moduleName]" % sys.argv[0])
         sys.exit(1)
-
-    run(sys.argv[1], sys.argv[2])
+    run(*sys.argv[1:])
 
 # Local variables:
 # py-indent-offset: 4
